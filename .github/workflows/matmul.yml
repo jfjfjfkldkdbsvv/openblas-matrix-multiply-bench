@@ -1,0 +1,43 @@
+name: OpenBLAS Matrix-Multiply Benchmark
+
+# Public GitHub Action: installs OpenBLAS, builds the SGEMM benchmark,
+# runs it on the runner's CPU, and reports GFLOPS. Runs on push & manual trigger.
+on:
+  push:
+    paths:
+      - 'sgemm_bench.c'
+      - '.github/workflows/matmul.yml'
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show CPU info
+        run: |
+          echo "== CPU model =="
+          lscpu | grep -E 'Model name|Socket|Core|Thread|CPU\(s\)|Architecture' || true
+          echo "== nproc =="
+          nproc
+
+      - name: Install OpenBLAS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenblas-dev gcc
+
+      - name: Build benchmark
+        run: |
+          gcc -O3 -march=native -o sgemm_bench sgemm_bench.c -lopenblas -lpthread -lm
+          echo "OpenBLAS:"
+          dpkg -l | grep openblas
+
+      - name: Run benchmark (single thread)
+        env:
+          OPENBLAS_NUM_THREADS: "1"
+        run: ./sgemm_bench 4096
+
+      - name: Run benchmark (all threads)
+        run: ./sgemm_bench 4096
