@@ -1,0 +1,42 @@
+name: AVX-512 Max-Throughput Benchmark
+
+on:
+  push:
+    paths:
+      - 'avx512_bench.c'
+      - '.github/workflows/avx512.yml'
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show CPU info
+        run: |
+          echo "== CPU model =="
+          lscpu | grep -E 'Model name|Socket|Core|Thread|CPU\(s\)' || true
+          echo "== nproc =="
+          nproc
+          echo "== SIMD flags =="
+          grep -m1 -oE 'avx512f|avx512_vnni|avx512_bw|avx2|fma' /proc/cpuinfo | sort -u || true
+
+      - name: Install gcc + OpenMP
+        run: sudo apt-get update && sudo apt-get install -y gcc
+
+      - name: Build
+        run: gcc -O3 -march=native -fopenmp -o avx512_bench avx512_bench.c -lm
+
+      - name: Run (2 threads)
+        run: ./avx512_bench 2048 2
+
+      - name: Run (4 threads)
+        run: ./avx512_bench 2048 4
+
+      - name: Run (8 threads)
+        run: ./avx512_bench 2048 8
+
+      - name: Run (max threads, large N)
+        run: ./avx512_bench 4096 16
